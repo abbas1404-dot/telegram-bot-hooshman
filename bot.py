@@ -2,14 +2,12 @@ import os
 from flask import Flask, request
 import requests
 
-# 🔑 توکن ربات
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# 🎛 کیبورد اصلی — 12 گزینه
 keyboard = {
     "inline_keyboard": [
-        [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}],  # ✅ لینک جدید
+        [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}],
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
         [{"text": "💰 شهریه دوره‌ها", "callback_data": "price"}],
         [{"text": "📝 ثبت‌نام", "url": "https://t.me/hooshman_support"}],
@@ -23,7 +21,6 @@ keyboard = {
     ]
 }
 
-# 📡 پیام خوش‌آمدگویی
 WELCOME_TEXT = (
     "سلام و درود 🌸\n"
     "به **آکادمی تخصصی هوشمان** خوش آمدید —\n"
@@ -41,10 +38,9 @@ def home():
 def webhook():
     try:
         data = request.get_json()
-        if not 
+        if not data:
             return "No data", 400
 
-        # ✅ /start
         if "message" in data and data["message"].get("text") == "/start":
             chat_id = data["message"]["chat"]["id"]
             requests.post(
@@ -58,15 +54,13 @@ def webhook():
             )
             return "OK", 200
 
-        # ✅ رسیدگی به کلیک‌ها
-        if "callback_query" in 
+        if "callback_query" in data:
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
             callback_data = query["data"]
 
             requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={"callback_query_id": query["id"]})
 
-            # پاسخ‌های به‌روزشده
             responses = {
                 "courses": (
                     "📚 دوره‌های فعال آموزشگاه:\n\n"
