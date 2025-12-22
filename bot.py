@@ -1,16 +1,19 @@
 import os
-import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
-from aiohttp import web
+from flask import Flask
 
-# 🔑 دریافت توکن (اجباری)
+# 🔑 امنیت اول
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
-    raise RuntimeError("❌ TELEGRAM_BOT_TOKEN missing in environment.")
+    raise RuntimeError("❌ TELEGRAM_BOT_TOKEN is missing.")
+
+# 🌐 ضروری برای webhook
+WEBHOOK_URL = os.getenv("WEBHOOK_URL")  # مثلاً: https://your-id.up.railway.app
+if not WEBHOOK_URL:
+    raise RuntimeError("❌ WEBHOOK_URL is missing (get it from Railway → Domains).")
 
 PORT = int(os.getenv("PORT", 8000))
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "").strip()
 
 # 🎛 کیبورد
 keyboard = InlineKeyboardMarkup([
@@ -39,53 +42,40 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     await query.message.reply_text(replies.get(query.data, "⚠️ گزینه نامعتبر."))
 
-# 🖥 سرویس health check (حیاتی برای Railway)
-async def health_check(request):
-    return web.Response(text="OK", status=200)
+# 🖥 Flask برای Railway (سبک‌تر و پایدارتر از aiohttp در این مورد)
+app_flask = Flask(__name__)
 
-# 🌀 راه‌اندازی ربات
-async def start_bot():
+@app_flask.route("/")
+def health():
+    return "OK", 200
+
+# 🚀 راه‌اندازی ربات (همزمان با Flask)
+def run_bot():
+    print("🤖 Initializing bot...")
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
+    
+    # تنظیم webhook — فقط یک بار، قبل از شروع flask
+    webhook_path = f"/webhook/{TOKEN}"
+    full_url = WEBHOOK_URL + webhook_path
+    print(f"📡 Setting webhook to: {full_url}")
+    app.bot.set_webhook(url=full_url).wait()  # sync برای اطمینان
+    
+    print(f"✅ Starting webhook on port {PORT} (path: {webhook_path})")
+    app.run_webhook(
+        listen="0.0.0.0",
+        port=PORT,
+        url_path=f"webhook/{TOKEN}",
+        secret_token=None
+    )
 
-    if WEBHOOK_HOST:
-        webhook_path = f"/{TOKEN}"
-        webhook_url = f"{WEBHOOK_HOST}{webhook_path}"
-        print(f"📡 Setting webhook: {webhook_url}")
-        await app.bot.set_webhook(url=webhook_url)
-        await app.run_webhook(
-            listen="0.0.0.0",
-            port=PORT,
-            webhook_url=webhook_url,
-            drop_pending_updates=True
-        )
-    else:
-        print("🔄 Using polling (no WEBHOOK_HOST set)")
-        await app.run_polling(drop_pending_updates=True)
-
-# 🚀 نقطه ورود اصلی
 if __name__ == "__main__":
-    # ساخت سرور HTTP
-    app_http = web.Application()
-    app_http.router.add_get("/", health_check)
-
-    async def main():
-        # راه‌اندازی سرور HTTP
-        runner = web.AppRunner(app_http)
-        await runner.setup()
-        site = web.TCPSite(runner, "0.0.0.0", PORT)
-        await site.start()
-        print(f"✅ HTTP server running on port {PORT} (for Railway)")
-
-        # راه‌اندازی ربات در background
-        bot_task = asyncio.create_task(start_bot())
-        print("🤖 Bot is starting...")
-
-        # منتظر بمان تا متوقف شود
-        await bot_task
-
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        print("\n⏹ Bot stopped.")
+    # راه‌اندازی ربات در thread جداگانه
+    from threading import Thread
+    bot_thread = Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    
+    # راه‌اندازی Flask برای Railway
+    print(f"✅ Flask health server starting on port {PORT} (/ → 'OK')")
+    app_flask.run(host="0.0.0.0", port=PORT, threaded=True)
