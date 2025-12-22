@@ -1,19 +1,18 @@
 import os
+import asyncio
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
 from aiohttp import web
-import asyncio
 
-# 🔑 دریافت توکن از متغیر محیطی (استاندارد: TELEGRAM_BOT_TOKEN)
+# 🔑 دریافت توکن (اجباری)
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("❌ خطای امنیتی: متغیر محیطی TELEGRAM_BOT_TOKEN تنظیم نشده است.")
+    raise RuntimeError("❌ TELEGRAM_BOT_TOKEN missing in environment.")
 
-# 🌐 آدرس عمومی Railway (برای webhook)
-WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "")  # مثلاً: https://your-app.up.railway.app
-PORT = int(os.getenv("PORT", 8000))  # Railway این را ست می‌کند
+PORT = int(os.getenv("PORT", 8000))
+WEBHOOK_HOST = os.getenv("WEBHOOK_HOST", "").strip()
 
-# 🎛 ساخت کیبورد
+# 🎛 کیبورد
 keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("📝 توضیحات آزمون", callback_data="exam")],
     [InlineKeyboardButton("🎓 مدارک و گواهینامه‌ها", callback_data="cert")],
@@ -21,83 +20,72 @@ keyboard = InlineKeyboardMarkup([
     [InlineKeyboardButton("🪪 کارت ورود به جلسه", callback_data="card")]
 ])
 
-# 📡 دستور /start
+# 📡 هندلرها
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = (
-        "سلام و عرض ادب 🌸\n\n"
-        "به *آکادمی تخصصی هوشمان* خوش آمدید 👋\n"
-        "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
-    )
     await update.message.reply_text(
-        text,
+        "سلام و عرض ادب 🌸\nبه *آکادمی تخصصی هوشمان* خوش آمدید 👋\nلطفاً یکی از گزینه‌ها را انتخاب کنید:",
         reply_markup=keyboard,
         parse_mode="Markdown"
     )
 
-# 🖱 مدیریت کلیک دکمه‌ها
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-
-    responses = {
+    replies = {
         "exam": "📝 توضیحات کامل آزمون‌ها در این بخش قرار می‌گیرد.",
         "cert": "🎓 پس از پایان دوره، گواهینامه معتبر ارائه می‌شود.",
         "price": "💰 شهریه دوره‌ها به‌صورت نقد و اقساط قابل پرداخت است.",
         "card": "🪪 کارت ورود به جلسه ۲۴ ساعت قبل از آزمون صادر می‌شود."
     }
-    await query.message.reply_text(responses.get(query.data, "⚠️ گزینه نامعتبر است."))
+    await query.message.reply_text(replies.get(query.data, "⚠️ گزینه نامعتبر."))
 
-# 🚀 راه‌اندازی
-async def main():
-    # ساخت اپلیکیشن
+# 🖥 سرویس health check (حیاتی برای Railway)
+async def health_check(request):
+    return web.Response(text="OK", status=200)
+
+# 🌀 راه‌اندازی ربات
+async def start_bot():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # اگر WEBHOOK_HOST وجود داشت → وب‌هوک
     if WEBHOOK_HOST:
         webhook_path = f"/{TOKEN}"
         webhook_url = f"{WEBHOOK_HOST}{webhook_path}"
-        print(f"📡 تنظیم وب‌هوک: {webhook_url}")
+        print(f"📡 Setting webhook: {webhook_url}")
         await app.bot.set_webhook(url=webhook_url)
         await app.run_webhook(
             listen="0.0.0.0",
             port=PORT,
             webhook_url=webhook_url,
-            secret_token=None  # اختیاری؛ برای امنیت بیشتر می‌توانید اضافه کنید
+            drop_pending_updates=True
         )
     else:
-        # حالت توسعه لوکال (polling)
-        print("🔄 حالت توسعه: در حال استفاده از polling...")
-        await app.run_polling()
+        print("🔄 Using polling (no WEBHOOK_HOST set)")
+        await app.run_polling(drop_pending_updates=True)
 
-# 🖥 سرویس health check (برای Railway — جلوگیری از خوابیدن)
-async def health_check(request):
-    return web.Response(text="OK", content_type="text/plain")
-
+# 🚀 نقطه ورود اصلی
 if __name__ == "__main__":
-    # راه‌اندازی سرور HTTP ساده برای Railway
+    # ساخت سرور HTTP
     app_http = web.Application()
     app_http.router.add_get("/", health_check)
 
-    # راه‌اندازی ربات و سرور همزمان
-    async def start_services():
-        # راه‌اندازی ربات در background
-        bot_task = asyncio.create_task(main())
-        
-        # راه‌اندازی سرور HTTP روی همان پورت
+    async def main():
+        # راه‌اندازی سرور HTTP
         runner = web.AppRunner(app_http)
         await runner.setup()
         site = web.TCPSite(runner, "0.0.0.0", PORT)
         await site.start()
-        
-        print(f"✅ ربات و سرویس health check روی پورت {PORT} فعال شد.")
-        print("🌐 Railway می‌تواند این سرویس را بررسی کند: GET / → 'OK'")
+        print(f"✅ HTTP server running on port {PORT} (for Railway)")
 
-        # منتظر بمان تا interrupt شود
+        # راه‌اندازی ربات در background
+        bot_task = asyncio.create_task(start_bot())
+        print("🤖 Bot is starting...")
+
+        # منتظر بمان تا متوقف شود
         await bot_task
 
     try:
-        asyncio.run(start_services())
+        asyncio.run(main())
     except KeyboardInterrupt:
-        print("\n⏹ ربات متوقف شد.")
+        print("\n⏹ Bot stopped.")
