@@ -1,71 +1,91 @@
 import os
-import logging
 from flask import Flask, request
-from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+import telegram
+import json
 
-# تنظیمات
-TOKEN = os.environ["TELEGRAM_BOT_TOKEN"]
-PORT = int(os.environ.get("PORT", 8080))
+# 🔑 توکن را مستقیماً بگذارید (برای اطمینان)
+TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
+bot = telegram.Bot(token=TOKEN)
 
-# کیبورد
-keyboard = InlineKeyboardMarkup([
-    [InlineKeyboardButton("📝 توضیحات آزمون", callback_data="exam")],
-    [InlineKeyboardButton("🎓 مدارک و گواهینامه‌ها", callback_data="cert")],
-    [InlineKeyboardButton("💰 شهریه", callback_data="price")],
-    [InlineKeyboardButton("🪪 کارت ورود به جلسه", callback_data="card")]
+app = Flask(__name__)
+
+# 🎛 کیبورد
+keyboard = telegram.InlineKeyboardMarkup([
+    [telegram.InlineKeyboardButton("📝 توضیحات آزمون", callback_data="exam")],
+    [telegram.InlineKeyboardButton("🎓 مدارک و گواهینامه‌ها", callback_data="cert")],
+    [telegram.InlineKeyboardButton("💰 شهریه", callback_data="price")],
+    [telegram.InlineKeyboardButton("🪪 کارت ورود به جلسه", callback_data="card")]
 ])
 
-# هندلرها
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text(
-        "سلام و عرض ادب 🌸\nبه *آکادمی تخصصی هوشمان* خوش آمدید 👋\nلطفاً یکی از گزینه‌ها را انتخاب کنید:",
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
+# 📡 پیام شروع
+START_TEXT = (
+    "سلام و عرض ادب 🌸\n\n"
+    "به *آکادمی تخصصی هوشمان* خوش آمدید 👋\n"
+    "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
+)
 
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    replies = {
-        "exam": "📝 توضیحات کامل آزمون‌ها در این بخش قرار می‌گیرد.",
-        "cert": "🎓 پس از پایان دوره، گواهینامه معتبر ارائه می‌شود.",
-        "price": "💰 شهریه دوره‌ها به‌صورت نقد و اقساط قابل پرداخت است.",
-        "card": "🪪 کارت ورود به جلسه ۲۴ ساعت قبل از آزمون صادر می‌شود."
-    }
-    await query.message.reply_text(replies.get(query.data, "⚠️ گزینه نامعتبر."))
-
-# ساخت ربات (بدون اجرای خودکار)
-bot_app = Application.builder().token(TOKEN).build()
-bot_app.add_handler(CommandHandler("start", start))
-bot_app.add_handler(CallbackQueryHandler(button_handler))
-
-# راه‌اندازی async loop — فقط یک بار
-import asyncio
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-bot_app.updater = None  # جلوگیری از polling
-bot_app.bot_data  # برای اطمینان از init
-
-# Flask
-app = Flask(__name__)
-logging.basicConfig(level=logging.INFO)
-
+# 🖥 health check
 @app.route("/")
 def home():
     return "OK", 200
 
+# 🔗 webhook endpoint — دقیقاً با توکن
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
-    if request.method == "POST":
-        json_data = request.get_json()
-        if json_data:
-            update = Update.de_json(json_data, bot_app.bot)
-            loop.run_until_complete(bot_app.process_update(update))
-            return "OK", 200
-    return "Bad Request", 400
+    try:
+        data = request.get_json()
+        if not 
+            return "No data", 400
 
+        # اگر پیام متنی بود (مثل /start)
+        if "message" in data and "text" in data["message"]:
+            chat_id = data["message"]["chat"]["id"]
+            text = data["message"]["text"].strip()
+
+            if text == "/start":
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=START_TEXT,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
+                return "OK", 200
+
+        # اگر کلیک روی دکمه بود
+        if "callback_query" in 
+            query = data["callback_query"]
+            chat_id = query["message"]["chat"]["id"]
+            callback_data = query["data"]
+
+            # ✅ "exam" → ارسال دوباره پیام اصلی
+            if callback_data == "exam":
+                bot.send_message(
+                    chat_id=chat_id,
+                    text=START_TEXT,
+                    reply_markup=keyboard,
+                    parse_mode="Markdown"
+                )
+            elif callback_data == "cert":
+                bot.send_message(chat_id=chat_id, text="🎓 پس از پایان دوره، گواهینامه معتبر ارائه می‌شود.")
+            elif callback_data == "price":
+                bot.send_message(chat_id=chat_id, text="💰 شهریه دوره‌ها به‌صورت نقد و اقساط قابل پرداخت است.")
+            elif callback_data == "card":
+                bot.send_message(chat_id=chat_id, text="🪪 کارت ورود به جلسه ۲۴ ساعت قبل از آزمون صادر می‌شود.")
+            else:
+                bot.send_message(chat_id=chat_id, text="⚠️ گزینه نامعتبر است.")
+
+            # تأیید کلیک (برای حذف loading در تلگرام)
+            bot.answer_callback_query(callback_query_id=query["id"])
+
+            return "OK", 200
+
+        return "Ignored", 200
+
+    except Exception as e:
+        print("❌ Error:", str(e))
+        return "Error", 500
+
+# 🚀 راه‌اندازی
 if __name__ == "__main__":
-    print(f"✅ Server starting on port {PORT}")
-    print(f"📡 Webhook URL should be: https://f71671be-f173-4d32-8178-ed8a8fe1e1e5.up.railway.app/{TOKEN}")
-    app.run(host="0.0.0.0", port=PORT, debug=False)
+    port = int(os.environ.get("PORT", 8000))
+    app.run(host="0.0.0.0", port=port)
