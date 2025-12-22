@@ -3,7 +3,7 @@ from flask import Flask, request
 import telegram
 import json
 
-# 🔑 توکن را مستقیماً بگذارید (برای اطمینان)
+# 🔑 توکن
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 bot = telegram.Bot(token=TOKEN)
 
@@ -34,7 +34,7 @@ def home():
 def webhook():
     try:
         data = request.get_json()
-        if not 
+        if not data:  # ✅ اصلاح شده
             return "No data", 400
 
         # اگر پیام متنی بود (مثل /start)
@@ -52,7 +52,7 @@ def webhook():
                 return "OK", 200
 
         # اگر کلیک روی دکمه بود
-        if "callback_query" in 
+        if "callback_query" in data:  # ✅ اصلاح شده
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
             callback_data = query["data"]
