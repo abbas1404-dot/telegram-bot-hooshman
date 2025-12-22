@@ -1,13 +1,10 @@
 import os
 from flask import Flask, request
 import requests
-import json
 
-# 🔑 توکن
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# 🎛 کیبورد (به صورت دیکشنری ساده)
 keyboard = {
     "inline_keyboard": [
         [{"text": "📝 توضیحات آزمون", "callback_data": "exam"}],
@@ -17,7 +14,6 @@ keyboard = {
     ]
 }
 
-# 📡 پیام شروع
 START_TEXT = (
     "سلام و عرض ادب 🌸\n\n"
     "به *آکادمی تخصصی هوشمان* خوش آمدید 👋\n"
@@ -34,34 +30,31 @@ def home():
 def webhook():
     try:
         data = request.get_json()
-        if not 
+        if not data:
             return "No data", 400
 
-        # ✅ /start
-        if "message" in data and data["message"].get("text") == "/start":
-            chat_id = data["message"]["chat"]["id"]
-            requests.post(
-                f"{TELEGRAM_API}/sendMessage",
-                json={
-                    "chat_id": chat_id,
-                    "text": START_TEXT,
-                    "reply_markup": keyboard,
-                    "parse_mode": "Markdown"
-                }
-            )
-            return "OK", 200
+        if "message" in data and "text" in data["message"]:
+            if data["message"]["text"].strip() == "/start":
+                chat_id = data["message"]["chat"]["id"]
+                requests.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": START_TEXT,
+                        "reply_markup": keyboard,
+                        "parse_mode": "Markdown"
+                    }
+                )
+                return "OK", 200
 
-        # ✅ کلیک دکمه
-        if "callback_query" in 
+        if "callback_query" in data:
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
             callback_data = query["data"]
 
-            # تأیید فوری کلیک (حذف loading)
             requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={"callback_query_id": query["id"]})
 
             if callback_data == "exam":
-                # ارسال دوباره پیام اصلی
                 requests.post(
                     f"{TELEGRAM_API}/sendMessage",
                     json={
