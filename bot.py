@@ -5,7 +5,7 @@ import requests
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# 🎛 منوی اصلی — دقیقاً مطابق درخواست شما
+# 🎛 منوی اصلی
 main_keyboard = {
     "inline_keyboard": [
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
@@ -20,11 +20,30 @@ main_keyboard = {
     ]
 }
 
-# 🎛 ساخت منوی دوره‌ها — 2 دکمه در هر سطر
-def make_double_column(buttons):
+# 🔄 تابع ارسال منوی اصلی (جلوگیری از تکرار)
+def send_main_menu(chat_id):
+    requests.post(
+        f"{TELEGRAM_API}/sendMessage",
+        json={
+            "chat_id": chat_id,
+            "text": (
+                "سلام و درود 🌸\n"
+                "به **آکادمی تخصصی هوشمان** خوش آمدید —\n"
+                "جایی که *یادگیری* با *هوشمندی* همراه می‌شود! 🧠✨\n\n"
+                "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
+            ),
+            "reply_markup": main_keyboard,
+            "parse_mode": "Markdown"
+        }
+    )
+
+# 🎛 منوی دوره‌ها — 2 دکمه در هر سطر + دکمه بازگشت
+def make_double_column_with_back(buttons):
     k = []
     for i in range(0, len(buttons), 2):
         k.append(buttons[i:i+2])
+    # اضافه کردن دکمه بازگشت در آخر
+    k.append([{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_to_main"}])
     return {"inline_keyboard": k}
 
 course_buttons = [
@@ -39,15 +58,11 @@ course_buttons = [
     {"text": "🎨 هنرهای تجسمی", "callback_data": "c_art"}
 ]
 
-courses_kb = make_double_column(course_buttons)
+courses_kb = make_double_column_with_back(course_buttons)
 
-# 📡 پیام خوش‌آمدگویی
-WELCOME = (
-    "سلام و درود 🌸\n"
-    "به **آکادمی تخصصی هوشمان** خوش آمدید —\n"
-    "جایی که *یادگیری* با *هوشمندی* همراه می‌شود! 🧠✨\n\n"
-    "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
-)
+# 🎛 منوی فرعی با دکمه بازگشت (برای سایر بخش‌ها)
+def make_single_back():
+    return {"inline_keyboard": [[{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_to_main"}]]}
 
 app = Flask(__name__)
 
@@ -59,36 +74,32 @@ def home():
 def webhook():
     try:
         data = request.get_json()
-        if not data:
+        if not 
             return "No data", 400
 
-        # ✅ /start
+        # ✅ /start → منوی اصلی
         if "message" in data and data["message"].get("text") == "/start":
             chat_id = data["message"]["chat"]["id"]
-            requests.post(
-                f"{TELEGRAM_API}/sendMessage",
-                json={
-                    "chat_id": chat_id,
-                    "text": WELCOME,
-                    "reply_markup": main_keyboard,
-                    "parse_mode": "Markdown"
-                }
-            )
+            send_main_menu(chat_id)
             return "OK", 200
 
         # ✅ رسیدگی به کلیک‌ها
-        if "callback_query" in data:
+        if "callback_query" in 
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
             callback_data = query["data"]
 
-            # تأیید فوری کلیک
             requests.post(
                 f"{TELEGRAM_API}/answerCallbackQuery",
                 json={"callback_query_id": query["id"]}
             )
 
-            # ▶️ دوره‌های فعال → منوی 2 ستونی
+            # 🔙 بازگشت به منوی اصلی
+            if callback_data == "back_to_main":
+                send_main_menu(chat_id)
+                return "OK", 200
+
+            # 📚 دوره‌های فعال → منوی 2 ستونی + بازگشت
             if callback_data == "courses":
                 requests.post(
                     f"{TELEGRAM_API}/sendMessage",
@@ -120,12 +131,13 @@ def webhook():
                     json={
                         "chat_id": chat_id,
                         "text": f"در حال آماده‌سازی اطلاعات {name}...\n✅ به زودی جزئیات کامل اضافه می‌شود.",
+                        "reply_markup": make_single_back(),
                         "parse_mode": "Markdown"
                     }
                 )
                 return "OK", 200
 
-            # ▶️ سایر گزینه‌ها
+            # ▶️ سایر گزینه‌ها — همه با دکمه بازگشت
             responses = {
                 "cert": "🎓 *دریافت گواهینامه*\nپس از قبولی در آزمون، گواهینامه معتبر *وزارت کار* به صورت الکترونیکی صادر می‌شود و قابل استعلام در سامانه رسمی است.",
                 "card": "🪪 *دریافت کارت آزمون*\nکارت ورود به جلسه ۲۴ ساعت قبل از آزمون به صورت خودکار در همین ربات برای شما ارسال می‌شود.",
@@ -134,16 +146,20 @@ def webhook():
                 "samples": "📖 *نمونه سوالات*\nدر [وبسایت ما](https://hooshmaniran.ir/samples) می‌توانید نمونه سوالات رایگان آزمون‌های فنی و حرفه‌ای را دانلود کنید."
             }
 
-            text = responses.get(callback_data, "⚠️ محتوای این بخش به زودی بروزرسانی می‌شود.")
-            requests.post(
-                f"{TELEGRAM_API}/sendMessage",
-                json={
-                    "chat_id": chat_id,
-                    "text": text,
-                    "parse_mode": "Markdown"
-                }
-            )
-            return "OK", 200
+            text = responses.get(callback_data)
+            if text:
+                requests.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": text,
+                        "reply_markup": make_single_back(),
+                        "parse_mode": "Markdown"
+                    }
+                )
+                return "OK", 200
+
+            return "Ignored", 200
 
         return "Ignored", 200
 
