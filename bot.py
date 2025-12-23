@@ -5,7 +5,10 @@ import requests
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# 🎛 منوی اصلی
+# 📋 دکمهٔ ثابت برای نمایش لیست
+back_to_list_button = [{"text": "📊 نمایش لیست", "callback_data": "show_list"}]
+
+# 🎛 منوی اصلی — با دکمهٔ "نمایش لیست" در پایین (اختیاری — برای هماهنگی)
 main_keyboard = {
     "inline_keyboard": [
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
@@ -16,34 +19,17 @@ main_keyboard = {
         [{"text": "📈 دهک من چند است؟", "callback_data": "decile"}],
         [{"text": "📖 نمونه سوالات", "callback_data": "samples"}],
         [{"text": "📞 پشتیبانی و مشاوره", "url": "https://t.me/hooshman_support"}],
-        [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}]
+        [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}],
+        back_to_list_button  # اضافه شده در پایین برای هماهنگی
     ]
 }
 
-# 🔄 تابع ارسال منوی اصلی (جلوگیری از تکرار)
-def send_main_menu(chat_id):
-    requests.post(
-        f"{TELEGRAM_API}/sendMessage",
-        json={
-            "chat_id": chat_id,
-            "text": (
-                "سلام و درود 🌸\n"
-                "به **آکادمی تخصصی هوشمان** خوش آمدید —\n"
-                "جایی که *یادگیری* با *هوشمندی* همراه می‌شود! 🧠✨\n\n"
-                "لطفاً یکی از گزینه‌های زیر را انتخاب کنید:"
-            ),
-            "reply_markup": main_keyboard,
-            "parse_mode": "Markdown"
-        }
-    )
-
-# 🎛 منوی دوره‌ها — 2 دکمه در هر سطر + دکمه بازگشت
-def make_double_column_with_back(buttons):
+# 🎛 منوی دوره‌ها — 2 دکمه در هر سطر + دکمه "نمایش لیست" در پایین
+def make_double_column_with_list(buttons):
     k = []
     for i in range(0, len(buttons), 2):
         k.append(buttons[i:i+2])
-    # اضافه کردن دکمه بازگشت در آخر
-    k.append([{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_to_main"}])
+    k.append(back_to_list_button)  # دکمه ثابت در پایین
     return {"inline_keyboard": k}
 
 course_buttons = [
@@ -58,11 +44,17 @@ course_buttons = [
     {"text": "🎨 هنرهای تجسمی", "callback_data": "c_art"}
 ]
 
-courses_kb = make_double_column_with_back(course_buttons)
+courses_kb = make_double_column_with_list(course_buttons)
 
-# 🎛 منوی فرعی با دکمه بازگشت (برای سایر بخش‌ها)
-def make_single_back():
-    return {"inline_keyboard": [[{"text": "🔙 بازگشت به منوی اصلی", "callback_data": "back_to_main"}]]}
+# 🎛 منوی فرعی: فقط دکمهٔ "نمایش لیست" (برای پاسخ‌های متنی)
+list_only_kb = {"inline_keyboard": [back_to_list_button]}
+
+# 📡 متن خوش‌آمدگویی
+WELCOME_TEXT = (
+    "سلام و درود 🌸\n"
+    "به **آکادمی تخصصی هوشمان** خوش آمدید —\n"
+    "جایی که *یادگیری* با *هوشمندی* همراه می‌شود! 🧠✨"
+)
 
 app = Flask(__name__)
 
@@ -80,8 +72,32 @@ def webhook():
         # ✅ /start → منوی اصلی
         if "message" in data and data["message"].get("text") == "/start":
             chat_id = data["message"]["chat"]["id"]
-            send_main_menu(chat_id)
+            requests.post(
+                f"{TELEGRAM_API}/sendMessage",
+                json={
+                    "chat_id": chat_id,
+                    "text": WELCOME_TEXT,
+                    "reply_markup": main_keyboard,
+                    "parse_mode": "Markdown"
+                }
+            )
             return "OK", 200
+
+        # ✅ پیام متنی دلخواه (مثل 'سلام' یا 'لیست') → منوی اصلی
+        if "message" in data and "text" in data["message"]:
+            text = data["message"]["text"].strip().lower()
+            chat_id = data["message"]["chat"]["id"]
+            if "لیست" in text or "menu" in text or "منو" in text:
+                requests.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": "📋 منوی خدمات:",
+                        "reply_markup": main_keyboard,
+                        "parse_mode": "Markdown"
+                    }
+                )
+                return "OK", 200
 
         # ✅ رسیدگی به کلیک‌ها
         if "callback_query" in 
@@ -94,12 +110,20 @@ def webhook():
                 json={"callback_query_id": query["id"]}
             )
 
-            # 🔙 بازگشت به منوی اصلی
-            if callback_data == "back_to_main":
-                send_main_menu(chat_id)
+            # 📊 نمایش لیست (در هر جایی که کلیک شود)
+            if callback_data == "show_list":
+                requests.post(
+                    f"{TELEGRAM_API}/sendMessage",
+                    json={
+                        "chat_id": chat_id,
+                        "text": "📋 لیست خدمات آکادمی هوشمان:",
+                        "reply_markup": main_keyboard,
+                        "parse_mode": "Markdown"
+                    }
+                )
                 return "OK", 200
 
-            # 📚 دوره‌های فعال → منوی 2 ستونی + بازگشت
+            # 📚 دوره‌های فعال
             if callback_data == "courses":
                 requests.post(
                     f"{TELEGRAM_API}/sendMessage",
@@ -130,14 +154,14 @@ def webhook():
                     f"{TELEGRAM_API}/sendMessage",
                     json={
                         "chat_id": chat_id,
-                        "text": f"در حال آماده‌سازی اطلاعات {name}...\n✅ به زودی جزئیات کامل اضافه می‌شود.",
-                        "reply_markup": make_single_back(),
+                        "text": f"✅ اطلاعات {name}:\nدر حال آماده‌سازی جزئیات کامل (سرفصل، مدرس، هزینه).\n📌 به زودی بروزرسانی می‌شود.",
+                        "reply_markup": list_only_kb,
                         "parse_mode": "Markdown"
                     }
                 )
                 return "OK", 200
 
-            # ▶️ سایر گزینه‌ها — همه با دکمه بازگشت
+            # ▶️ سایر گزینه‌ها — همه با دکمهٔ "نمایش لیست"
             responses = {
                 "cert": "🎓 *دریافت گواهینامه*\nپس از قبولی در آزمون، گواهینامه معتبر *وزارت کار* به صورت الکترونیکی صادر می‌شود و قابل استعلام در سامانه رسمی است.",
                 "card": "🪪 *دریافت کارت آزمون*\nکارت ورود به جلسه ۲۴ ساعت قبل از آزمون به صورت خودکار در همین ربات برای شما ارسال می‌شود.",
@@ -153,13 +177,11 @@ def webhook():
                     json={
                         "chat_id": chat_id,
                         "text": text,
-                        "reply_markup": make_single_back(),
+                        "reply_markup": list_only_kb,
                         "parse_mode": "Markdown"
                     }
                 )
                 return "OK", 200
-
-            return "Ignored", 200
 
         return "Ignored", 200
 
