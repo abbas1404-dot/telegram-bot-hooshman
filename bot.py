@@ -7,7 +7,6 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 keyboard = {
     "inline_keyboard": [
-        [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}],
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
         [{"text": "📝 میخواهم ثبت نام کنم", "url": "https://t.me/hooshman_support"}]
         [{"text": "🎓 گواهینامه فنی", "callback_data": "cert"}],
@@ -17,6 +16,7 @@ keyboard = {
         [{"text": "📈 دهک من چند است؟", "callback_data": "decile"}],
         [{"text": "📖 نمونه سوالات", "callback_data": "samples"}]
         [{"text": "📞  پشتیبانی و مشاوره", "url": "https://t.me/hooshman_support"}],
+        [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}],
     ]
 }
 
@@ -105,6 +105,7 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
