@@ -9,7 +9,7 @@ keyboard = {
     "inline_keyboard": [
         [{"text": "🌐 وبسایت آموزشگاه", "url": "https://hooshmaniran.ir/"}],
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
-        [{"text": "📝 ثبت‌نام", "url": "https://t.me/hooshman_support"}]
+        [{"text": "📝 میخواهم ثبت نام کنم", "url": "https://t.me/hooshman_support"}]
         [{"text": "🎓 گواهینامه فنی", "callback_data": "cert"}],
         [{"text": "🪪  کارت آزمون", "callback_data": "card"}],
         [{"text": "ℹ️ توضیحات آزمون", "callback_data": "exam"}],
@@ -105,6 +105,7 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+
 
 
 
