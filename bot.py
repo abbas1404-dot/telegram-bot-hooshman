@@ -12,7 +12,7 @@ keyboard = {
         [{"text": "📝 ثبت‌نام", "url": "https://t.me/hooshman_support"}],
         [{"text": "📞 مشاوره", "url": "https://t.me/hooshman_support"}],
         [{"text": "🎓 گواهینامه فنی", "callback_data": "cert"}],
-        [{"text": "🪪 کارت ورود", "callback_data": "card"}],
+        [{"text": "🪪  کارت به آزمون", "callback_data": "card"}],
         [{"text": "ℹ️ توضیحات آزمون", "callback_data": "exam"}],
         [{"text": "📊 تعرفه آزمون‌ها", "callback_data": "fee"}],
         [{"text": "📈 دهک من چند است؟", "callback_data": "decile"}],
@@ -105,4 +105,5 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+
 
