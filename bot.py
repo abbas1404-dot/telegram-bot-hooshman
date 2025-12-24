@@ -54,7 +54,7 @@ def home():
 def webhook():
     try:
         data = request.get_json()
-        if not 
+        if data is None:
             return "No data", 400
 
         if "message" in data and data["message"].get("text") == "/start":
