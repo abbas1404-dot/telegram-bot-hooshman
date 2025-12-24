@@ -2,9 +2,13 @@ import os
 from flask import Flask, request
 import requests
 
+# ================== CONFIG ==================
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
+app = Flask(__name__)
+
+# ================== KEYBOARDS ==================
 main_keyboard = {
     "inline_keyboard": [
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
@@ -19,14 +23,18 @@ main_keyboard = {
     ]
 }
 
-list_button_kb = {"inline_keyboard": [[{"text": "📊 نمایش لیست", "callback_data": "show_list"}]]}
+list_button_kb = {
+    "inline_keyboard": [
+        [{"text": "📊 نمایش لیست", "callback_data": "show_list"}]
+    ]
+}
 
 def make_double_column_with_list(buttons):
-    k = []
+    keyboard = []
     for i in range(0, len(buttons), 2):
-        k.append(buttons[i:i+2])
-    k.append([{"text": "📊 نمایش لیست", "callback_data": "show_list"}])
-    return {"inline_keyboard": k}
+        keyboard.append(buttons[i:i + 2])
+    keyboard.append([{"text": "📊 نمایش لیست", "callback_data": "show_list"}])
+    return {"inline_keyboard": keyboard}
 
 course_buttons = [
     {"text": "💻 مهارت‌های کامپیوتر", "callback_data": "c_comp"},
@@ -42,10 +50,34 @@ course_buttons = [
 
 courses_kb = make_double_column_with_list(course_buttons)
 
-WELCOME_TEXT = "سلام و درود 🌸\nبه **آکادمی تخصصی هوشمان** خوش آمدید —\nجایی که *یادگیری* با *هوشمندی* همراه می‌شود! 🧠✨"
+# ================== TEXTS ==================
+WELCOME_TEXT = (
+    "سلام و درود 🌸\n"
+    "به **آکادمی تخصصی هوشمان** خوش آمدید —\n"
+    "جایی که *یادگیری* با *هوشمندی* همراه می‌شود! 🧠✨"
+)
 
-app = Flask(__name__)
+COURSE_NAMES = {
+    "c_comp": "مهارت‌های کامپیوتر",
+    "c_graph": "گرافیک دیزاین",
+    "c_prog": "برنامه‌نویسی",
+    "c_ai": "هوش مصنوعی",
+    "c_cont": "تولید محتوا",
+    "c_web": "طراحی سایت",
+    "c_net": "شبکه و امنیت",
+    "c_eng": "معماری و مهندسی",
+    "c_art": "هنرهای تجسمی"
+}
 
+RESPONSES = {
+    "cert": "🎓 *دریافت گواهینامه*\nگواهینامه معتبر *وزارت کار* صادر می‌شود.\n\n👇 برای بازگشت، روی «نمایش لیست» کلیک کنید.",
+    "card": "🪪 *دریافت کارت آزمون*\nارسال ۲۴ ساعت قبل از آزمون.\n\n👇 برای بازگشت، روی «نمایش لیست» کلیک کنید.",
+    "fee": "📊 *تعرفه آزمون*\n• آزمون اصلی: رایگان\n• آزمون آزمایشی: ۲۵۰,۰۰۰ تومان\n\n👇 برای بازگشت، روی «نمایش لیست» کلیک کنید.",
+    "decile": "📈 *دهک من چند است؟*\nبر اساس رتبهٔ شما محاسبه می‌شود.\n\n👇 برای بازگشت، روی «نمایش لیست» کلیک کنید.",
+    "samples": "📖 *نمونه سوالات*\nدر [وبسایت ما](https://hooshmaniran.ir/samples) قابل دانلود است.\n\n👇 برای بازگشت، روی «نمایش لیست» کلیک کنید."
+}
+
+# ================== ROUTES ==================
 @app.route("/")
 def home():
     return "OK", 200
@@ -54,9 +86,10 @@ def home():
 def webhook():
     try:
         data = request.get_json()
-        if data is None:
+        if not data:
             return "No data", 400
 
+        # ---------- /start ----------
         if "message" in data and data["message"].get("text") == "/start":
             chat_id = data["message"]["chat"]["id"]
             requests.post(
@@ -70,10 +103,12 @@ def webhook():
             )
             return "OK", 200
 
+        # ---------- text messages ----------
         if "message" in data and "text" in data["message"]:
             text = data["message"]["text"].strip().lower()
             chat_id = data["message"]["chat"]["id"]
-            if "لیست" in text or "menu" in text or "منو" in text:
+
+            if "لیست" in text or "منو" in text or "menu" in text:
                 requests.post(
                     f"{TELEGRAM_API}/sendMessage",
                     json={
@@ -85,7 +120,8 @@ def webhook():
                 )
                 return "OK", 200
 
-        if "callback_query" in 
+        # ---------- callbacks ----------
+        if "callback_query" in data:
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
             callback_data = query["data"]
@@ -119,20 +155,13 @@ def webhook():
                 )
                 return "OK", 200
 
-            elif callback_data.startswith("c_"):
-                names = {
-                    "c_comp": "مهارت‌های کامپیوتر",
-                    "c_graph": "گرافیک دیزاین",
-                    "c_prog": "برنامه‌نویسی",
-                    "c_ai": "هوش مصنوعی",
-                    "c_cont": "تولید محتوا",
-                    "c_web": "طراحی سایت",
-                    "c_net": "شبکه و امنیت",
-                    "c_eng": "معماری و مهندسی",
-                    "c_art": "هنرهای تجسمی"
-                }
-                name = names.get(callback_data, "این دوره")
-                text = f"✅ اطلاعات {name}:\nدر حال آماده‌سازی جزئیات.\n\n👇 برای بازگشت، روی \"نمایش لیست\" کلیک کنید."
+            if callback_data.startswith("c_"):
+                course_name = COURSE_NAMES.get(callback_data, "این دوره")
+                text = (
+                    f"✅ اطلاعات {course_name}:\n"
+                    "در حال آماده‌سازی جزئیات.\n\n"
+                    "👇 برای بازگشت، روی «نمایش لیست» کلیک کنید."
+                )
                 requests.post(
                     f"{TELEGRAM_API}/sendMessage",
                     json={
@@ -144,21 +173,12 @@ def webhook():
                 )
                 return "OK", 200
 
-            responses = {
-                "cert": "🎓 *دریافت گواهینامه*\nگواهینامه معتبر *وزارت کار* صادر می‌شود.\n\n👇 برای بازگشت، روی \"نمایش لیست\" کلیک کنید.",
-                "card": "🪪 *دریافت کارت آزمون*\nارسال ۲۴ ساعت قبل از آزمون.\n\n👇 برای بازگشت، روی \"نمایش لیست\" کلیک کنید.",
-                "fee": "📊 *تعرفه آزمون*\n• آزمون اصلی: رایگان\n• آزمون آزمایشی: ۲۵۰,۰۰۰ تومان\n\n👇 برای بازگشت، روی \"نمایش لیست\" کلیک کنید.",
-                "decile": "📈 *دهک من چند است؟*\nبر اساس رتبهٔ شما محاسبه می‌شود.\n\n👇 برای بازگشت، روی \"نمایش لیست\" کلیک کنید.",
-                "samples": "📖 *نمونه سوالات*\nدر [وبسایت ما](https://hooshmaniran.ir/samples) قابل دانلود است.\n\n👇 برای بازگشت، روی \"نمایش لیست\" کلیک کنید."
-            }
-
-            text = responses.get(callback_data)
-            if text:
+            if callback_data in RESPONSES:
                 requests.post(
                     f"{TELEGRAM_API}/sendMessage",
                     json={
                         "chat_id": chat_id,
-                        "text": text,
+                        "text": RESPONSES[callback_data],
                         "reply_markup": list_button_kb,
                         "parse_mode": "Markdown"
                     }
@@ -168,9 +188,10 @@ def webhook():
         return "Ignored", 200
 
     except Exception as e:
-        print("❌ Error:", str(e))
+        print("❌ Error:", e)
         return "Error", 500
 
+# ================== RUN ==================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
