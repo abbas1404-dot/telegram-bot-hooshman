@@ -2,7 +2,7 @@ import os
 from flask import Flask, request
 import requests
 
-TOKEN = "PUT_YOUR_TOKEN_HERE"
+TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
@@ -131,3 +131,4 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
+
