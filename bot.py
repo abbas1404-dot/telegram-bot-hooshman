@@ -15,6 +15,7 @@ main_kb = {
         [{"text": "🎓 دریافت گواهینامه", "callback_data": "cert"}],
         [{"text": "🪪 کارت آزمون", "callback_data": "card"}],
         [{"text": "📊 تعرفه آزمون", "callback_data": "fees"}],
+        [{"text": "📈 دهک من چند است؟", "callback_data": "decile"}],
         [{"text": "📖 نمونه سوالات", "callback_data": "samples"}],
         [{"text": "📞 پشتیبانی", "url": "https://t.me/hooshman_support"}],
         [{"text": "🌐 وبسایت", "url": "https://hooshmaniran.ir"}]
@@ -30,7 +31,7 @@ def edit(chat, msg, text, kb):
         "parse_mode": "Markdown"
     })
 
-# ================= COURSES =================
+# ================= COURSES TREE =================
 COURSES = {
     "c_comp": ["ICDL", "EXCEL"],
     "c_graph": ["Photoshop", "Illustrator", "Corel Draw", "Premiere", "After Effect", "Create Content"],
@@ -45,19 +46,16 @@ courses_kb = {
     "inline_keyboard": [
         [{"text": "💻 مهارت‌های کامپیوتر", "callback_data": "c_comp"},
          {"text": "🎨 گرافیک دیزاین", "callback_data": "c_graph"}],
-
         [{"text": "🧠 مهندس هوش مصنوعی", "callback_data": "c_ai_eng"},
          {"text": "🧑 کاربر هوش مصنوعی", "callback_data": "c_ai_user"}],
-
         [{"text": "🌐 طراحی سایت", "callback_data": "c_web"},
          {"text": "🔒 شبکه و امنیت", "callback_data": "c_net"}],
-
         [{"text": "📐 معماری مهندسی", "callback_data": "c_arch"}],
         [{"text": "🔙 بازگشت", "callback_data": "back"}]
     ]
 }
 
-# ================= FEES (DECILE) =================
+# ================= PRICES =================
 PRICE = {
     "ICDL": {6:"920.000",7:"989.000",8:"1.058.000",9:"1.127.000",10:"1.196.000"},
     "AutoCAD": {6:"912.000",7:"981.000",8:"1.049.000",9:"1.117.000",10:"1.186.000"},
@@ -97,34 +95,40 @@ def webhook():
         mid = q["message"]["message_id"]
         cb = q["data"]
 
+        # ===== COURSES =====
         if cb == "courses":
             edit(cid, mid, "📚 دوره‌های فعال:", courses_kb)
 
         elif cb in COURSES:
             kb = {"inline_keyboard": []}
-            for i in range(0, len(COURSES[cb]), 2):
-                row = [{"text": COURSES[cb][i], "callback_data": f"course_{COURSES[cb][i]}"}]
-                if i+1 < len(COURSES[cb]):
-                    row.append({"text": COURSES[cb][i+1], "callback_data": f"course_{COURSES[cb][i+1]}"})
+            items = COURSES[cb]
+            for i in range(0, len(items), 2):
+                row = [{"text": items[i], "callback_data": f"course_{items[i]}"}]
+                if i+1 < len(items):
+                    row.append({"text": items[i+1], "callback_data": f"course_{items[i+1]}"})
                 kb["inline_keyboard"].append(row)
             kb["inline_keyboard"].append([{"text": "🔙 بازگشت", "callback_data": "courses"}])
             edit(cid, mid, "📌 دوره موردنظر را انتخاب کنید:", kb)
 
-        elif cb.startswith("course_"):
+        elif cb.startswith("course_") and cb.replace("course_", "") in PRICE:
             name = cb.replace("course_", "")
-            edit(cid, mid, f"📘 *{name}*\n\nبرای ثبت‌نام با پشتیبانی در ارتباط باشید.",
-                 {"inline_keyboard":[[{"text":"📝 ثبت‌نام","url":"https://t.me/hooshman_support"}],
-                                     [{"text":"🔙 بازگشت","callback_data":"courses"}]]})
-
-        elif cb == "fees":
-            edit(cid, mid, "📊 تعرفه آزمون – ابتدا دوره را انتخاب کنید:", courses_kb)
-
-        elif cb.startswith("course_") and cb.replace("course_","") in PRICE:
-            c = cb.replace("course_","")
-            txt = f"💰 *تعرفه {c}*\n\n"
+            txt = f"💰 *تعرفه آزمون {name}*\n\n"
             for d in range(6,11):
-                txt += f"دهک {d}: `{PRICE[c][d]} تومان`\n"
+                txt += f"دهک {d}: `{PRICE[name][d]} تومان`\n"
             edit(cid, mid, txt, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"fees"}]]})
+
+        # ===== FEES =====
+        elif cb == "fees":
+            edit(cid, mid, "📊 تعرفه آزمون – انتخاب رشته:", courses_kb)
+
+        # ===== EMPTY DECILE =====
+        elif cb == "decile":
+            edit(
+                cid,
+                mid,
+                "📈 *دهک من چند است؟*\n\nاین بخش در حال توسعه می‌باشد.",
+                {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]}
+            )
 
         elif cb == "back":
             edit(cid, mid, "منوی اصلی:", main_kb)
