@@ -22,16 +22,16 @@ main_kb = {
     ]
 }
 
-def edit(chat, msg, text, kb):
+def edit(chat_id, msg_id, text, kb):
     requests.post(f"{API}/editMessageText", json={
-        "chat_id": chat,
-        "message_id": msg,
+        "chat_id": chat_id,
+        "message_id": msg_id,
         "text": text,
         "reply_markup": kb,
         "parse_mode": "Markdown"
     })
 
-# ================= COURSES TREE =================
+# ================= COURSES =================
 COURSES = {
     "c_comp": ["ICDL", "EXCEL"],
     "c_graph": ["Photoshop", "Illustrator", "Corel Draw", "Premiere", "After Effect", "Create Content"],
@@ -72,30 +72,29 @@ PRICE = {
     "SEO": {6:"1.240.000",7:"1.333.000",8:"1.426.000",9:"1.519.000",10:"1.612.000"}
 }
 
-# ================= ROUTE =================
+# ================= WEBHOOK =================
 @app.route(f"/{TOKEN}", methods=["POST"])
 def webhook():
-    d = request.get_json()
-    if not d:
+    data = request.get_json()
+    if not data:
         return "OK"
 
-    if "message" in d and d["message"].get("text") == "/start":
-        cid = d["message"]["chat"]["id"]
+    if "message" in data and data["message"].get("text") == "/start":
+        cid = data["message"]["chat"]["id"]
         requests.post(f"{API}/sendMessage", json={
             "chat_id": cid,
-            "text": "به آکادمی تخصصی هوشمان خوش آمدید 🌸",
+            "text": "🌸 به *آکادمی تخصصی هوشمان* خوش آمدید",
             "reply_markup": main_kb,
             "parse_mode": "Markdown"
         })
         return "OK"
 
-    if "callback_query" in d:
-        q = d["callback_query"]
+    if "callback_query" in data:
+        q = data["callback_query"]
         cid = q["message"]["chat"]["id"]
         mid = q["message"]["message_id"]
         cb = q["data"]
 
-        # ===== COURSES =====
         if cb == "courses":
             edit(cid, mid, "📚 دوره‌های فعال:", courses_kb)
 
@@ -104,7 +103,7 @@ def webhook():
             items = COURSES[cb]
             for i in range(0, len(items), 2):
                 row = [{"text": items[i], "callback_data": f"course_{items[i]}"}]
-                if i+1 < len(items):
+                if i + 1 < len(items):
                     row.append({"text": items[i+1], "callback_data": f"course_{items[i+1]}"})
                 kb["inline_keyboard"].append(row)
             kb["inline_keyboard"].append([{"text": "🔙 بازگشت", "callback_data": "courses"}])
@@ -112,42 +111,35 @@ def webhook():
 
         elif cb.startswith("course_") and cb.replace("course_", "") in PRICE:
             name = cb.replace("course_", "")
-            txt = f"💰 *تعرفه آزمون {name}*\n\n"
-            for d in range(6,11):
-                txt += f"دهک {d}: `{PRICE[name][d]} تومان`\n"
-            edit(cid, mid, txt, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"fees"}]]})
+            text = f"💰 *تعرفه آزمون {name}*\n\n"
+            for d in range(6, 11):
+                text += f"دهک {d}: `{PRICE[name][d]} تومان`\n"
+            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"fees"}]]})
 
-        # ===== FEES =====
         elif cb == "fees":
             edit(cid, mid, "📊 تعرفه آزمون – انتخاب رشته:", courses_kb)
 
-        # ===== EMPTY DECILE =====
         elif cb == "decile":
-    edit(
-        cid,
-        mid,
-        "📈 *دهک من چند است؟*\n\n"
-        "برای بررسی وضعیت دهک خانوار، می‌توانید از روش‌های زیر استفاده کنید:\n\n"
-        "🔹 *سامانه حمایت وزارت رفاه*\n"
-        "با مراجعه به سامانه حمایت و وارد کردن:\n"
-        "• کد ملی سرپرست خانوار\n"
-        "• شماره موبایل ثبت‌شده\n\n"
-        "وضعیت دهک درآمدی خود را مشاهده کنید.\n\n"
-        "🔹 *کد دستوری*\n"
-        "`#43857*4*`\n\n"
-        "🔹 *اپلیکیشن‌ها*\n"
-        "• رفاه ایرانیان\n"
-        "• شادمان\n\n"
-        "📌 اطلاعات دهک شما از این طریق به‌صورت رسمی قابل مشاهده است.",
-        {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]}
-    )
-
+            edit(
+                cid,
+                mid,
+                "📈 *دهک من چند است؟*\n\n"
+                "برای بررسی وضعیت دهک خانوار، می‌توانید از روش‌های زیر استفاده کنید:\n\n"
+                "🔹 *سامانه حمایت وزارت رفاه*\n"
+                "با وارد کردن کد ملی سرپرست خانوار و شماره موبایل ثبت‌شده\n\n"
+                "🔹 *کد دستوری*\n"
+                "`#43857*4*`\n\n"
+                "🔹 *اپلیکیشن‌ها*\n"
+                "• رفاه ایرانیان\n"
+                "• شادمان\n\n"
+                "📌 اطلاعات دهک به‌صورت رسمی از این روش‌ها قابل مشاهده است.",
+                {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]}
+            )
 
         elif cb == "back":
-            edit(cid, mid, "منوی اصلی:", main_kb)
+            edit(cid, mid, "📋 منوی اصلی:", main_kb)
 
     return "OK"
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
-
