@@ -11,13 +11,13 @@ app = Flask(__name__)
 main_kb = {
     "inline_keyboard": [
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
-        [{"text": "📝 ثبت‌نام", "url": "https://t.me/hooshman_support"}],
+        [{"text": "📝 ثبت‌نام", "url": "https://hooshmaniran.ir"}],  # ارجاع مستقیم به وبسایت
         [{"text": "🎓 دریافت گواهینامه", "callback_data": "cert"}],
         [{"text": "🪪 کارت آزمون", "callback_data": "card"}],
         [{"text": "📊 تعرفه آزمون", "callback_data": "fees"}],
         [{"text": "📈 دهک من چند است؟", "callback_data": "decile"}],
         [{"text": "📖 نمونه سوالات", "callback_data": "samples"}],
-        [{"text": "📞 پشتیبانی", "url": "https://t.me/hooshman_support"}],
+        [{"text": "📞 پشتیبانی", "url": "https://t.me/HOOSHMAN_IR"}],  # ارجاع مستقیم به تلگرام
         [{"text": "🌐 وبسایت", "url": "https://hooshmaniran.ir"}]
     ]
 }
@@ -86,7 +86,7 @@ def webhook():
         cb = q["data"]
 
         # ===== دوره‌ها =====
-        if cb == "courses" or cb == "fees":  # fees هم مانند دوره‌ها عمل می‌کند
+        if cb == "courses" or cb == "fees" or cb == "samples":  # samples مانند دوره‌ها
             kb = []
             row = []
             for i, key in enumerate(COURSES.keys()):
@@ -100,14 +100,19 @@ def webhook():
             edit(cid, mid, "📚 لطفاً یک دوره را انتخاب کنید:", {"inline_keyboard": kb})
 
         # ===== زیرمنو دوره =====
-        elif cb.startswith("courses_course_") or cb.startswith("fees_course_"):
-            prefix = "courses_course_" if cb.startswith("courses_course_") else "fees_course_"
+        elif cb.startswith("courses_course_") or cb.startswith("fees_course_") or cb.startswith("samples_course_"):
+            prefix = "courses_course_" if cb.startswith("courses_course_") else "fees_course_" if cb.startswith("fees_course_") else "samples_course_"
             course_name = cb.replace(prefix, "")
             items = COURSES.get(course_name, [])
             kb = []
             for item in items:
-                kb.append([{"text": item, "callback_data": f"{cb[:4]}_price_{item}"}])  # preserves courses/fees context
-            kb.append([{"text": "🔙 بازگشت", "callback_data": "courses" if cb.startswith("courses_course_") else "fees"}])
+                if cb.startswith("fees_course_"):
+                    kb.append([{"text": item, "callback_data": f"fees_price_{item}"}])
+                elif cb.startswith("samples_course_"):
+                    kb.append([{"text": item, "callback_data": f"samples_file_{item}"}])
+                else:
+                    kb.append([{"text": item, "callback_data": f"courses_detail_{item}"}])
+            kb.append([{"text": "🔙 بازگشت", "callback_data": cb[:4]}])
             edit(cid, mid, f"💡 {course_name} شامل موارد زیر است:", {"inline_keyboard": kb})
 
         # ===== نمایش قیمت بر اساس دهک =====
@@ -168,13 +173,11 @@ def webhook():
             )
 
         # ===== نمونه سوالات =====
-        elif cb == "samples":
-            edit(
-                cid,
-                mid,
-                "📖 *نمونه سوالات*\nدانلود از [وبسایت آموزشگاه](https://hooshmaniran.ir/samples)",
-                {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]}
-            )
+        elif cb.startswith("samples_file_"):
+            # فعلاً فقط نمایش نام دوره، لینک فایل بعداً اضافه می‌شود
+            item = cb.replace("samples_file_", "")
+            edit(cid, mid, f"📄 نمونه سوالات {item} در دسترس است (لینک بعداً اضافه می‌شود).",
+                 {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"samples"}]]})
 
         # ===== بازگشت به منوی اصلی =====
         elif cb == "back":
