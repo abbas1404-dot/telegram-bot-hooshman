@@ -35,31 +35,19 @@ def edit(chat_id, msg_id, text, kb=None):
 
 # ================= COURSES =================
 COURSES = {
-    "c_comp": ["ICDL", "EXCEL"],
-    "c_graph": ["Photoshop", "Illustrator", "Corel Draw", "Premiere", "After Effect", "Create Content"],
-    "c_ai_eng": ["Python", "Data Science", "Machine Learning", "Deep Learning", "Computer Vision"],
-    "c_ai_user": ["AI Automation", "AI Powered Learning"],
-    "c_web": ["Frontend", "PHP", "WordPress", "SEO"],
-    "c_net": ["Network+", "Linux", "Cisco", "Microsoft"],
-    "c_arch": ["AutoCAD", "3Ds Max", "Revit", "SolidWorks"]
+    "💻 مهارت‌های کامپیوتر": ["ICDL", "EXCEL"],
+    "🎨 گرافیک دیزاین": ["Photoshop", "Illustrator", "Corel Draw", "Premiere", "After Effect", "Create Content"],
+    "🧠 مهندس هوش مصنوعی": ["Python", "Data Science", "Machine Learning", "Deep Learning", "Computer Vision"],
+    "🧑 کاربر هوش مصنوعی": ["AI Automation", "AI Powered Learning"],
+    "🌐 طراحی سایت": ["Frontend", "PHP", "WordPress", "SEO"],
+    "🔒 شبکه و امنیت": ["Network+", "Linux", "Cisco", "Microsoft"],
+    "📐 معماری مهندسی": ["AutoCAD", "3Ds Max", "Revit", "SolidWorks"]
 }
 
-courses_kb = {
-    "inline_keyboard": [
-        [{"text": "💻 مهارت‌های کامپیوتر", "callback_data": "c_comp"},
-         {"text": "🎨 گرافیک دیزاین", "callback_data": "c_graph"}],
-        [{"text": "🧠 مهندس هوش مصنوعی", "callback_data": "c_ai_eng"},
-         {"text": "🧑 کاربر هوش مصنوعی", "callback_data": "c_ai_user"}],
-        [{"text": "🌐 طراحی سایت", "callback_data": "c_web"},
-         {"text": "🔒 شبکه و امنیت", "callback_data": "c_net"}],
-        [{"text": "📐 معماری مهندسی", "callback_data": "c_arch"}],
-        [{"text": "🔙 بازگشت", "callback_data": "back"}]
-    ]
-}
-
-# ================= PRICES (برای تعرفه) =================
+# قیمت‌ها برای تعرفه
 PRICE = {
     "ICDL": {6:"920.000",7:"989.000",8:"1.058.000",9:"1.127.000",10:"1.196.000"},
+    "EXCEL": {6:"-",7:"-",8:"-",9:"-",10:"-"},
     "AutoCAD": {6:"912.000",7:"981.000",8:"1.049.000",9:"1.117.000",10:"1.186.000"},
     "3Ds Max": {6:"1.347.000",7:"1.448.000",8:"1.549.000",9:"1.650.000",10:"1.751.000"},
     "Network+": {6:"320.000",7:"344.000",8:"368.000",9:"392.000",10:"416.000"},
@@ -97,15 +85,38 @@ def webhook():
         mid = q["message"]["message_id"]
         cb = q["data"]
 
-        # ===== دوره‌های فعال =====
+        # ===== دوره‌ها =====
         if cb == "courses":
-            edit(cid, mid, "📚 لطفاً یک دوره را انتخاب کنید:", courses_kb)
+            kb = []
+            row = []
+            for i, key in enumerate(COURSES.keys()):
+                row.append({"text": key, "callback_data": f"course_{key}"})
+                if (i+1) % 2 == 0:
+                    kb.append(row)
+                    row = []
+            if row:
+                kb.append(row)
+            kb.append([{"text": "🔙 بازگشت", "callback_data": "back"}])
+            edit(cid, mid, "📚 لطفاً یک دوره را انتخاب کنید:", {"inline_keyboard": kb})
 
-        # ===== زیر دوره‌ها =====
-        elif cb in COURSES:
-            items = COURSES[cb]
-            text = "💡 این دوره شامل موارد زیر است:\n" + "\n".join(f"• {i}" for i in items)
-            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت", "callback_data":"courses"}]]})
+        # ===== زیرمنو دوره =====
+        elif cb.startswith("course_"):
+            course_name = cb.replace("course_", "")
+            items = COURSES.get(course_name, [])
+            kb = []
+            for item in items:
+                kb.append([{"text": item, "callback_data": f"price_{item}"}])
+            kb.append([{"text": "🔙 بازگشت", "callback_data": "courses"}])
+            edit(cid, mid, f"💡 {course_name} شامل موارد زیر است:", {"inline_keyboard": kb})
+
+        # ===== نمایش قیمت بر اساس دهک =====
+        elif cb.startswith("price_"):
+            item = cb.replace("price_", "")
+            prices = PRICE.get(item, {})
+            text = f"💰 تعرفه {item} بر اساس دهک:\n"
+            for d, p in prices.items():
+                text += f"دهک {d}: {p} تومان\n"
+            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"courses"}]]})
 
         # ===== دریافت گواهینامه =====
         elif cb == "cert":
@@ -142,23 +153,13 @@ def webhook():
                 }
             )
 
-        # ===== تعرفه =====
-        elif cb == "fees":
-            text = "📊 *تعرفه دوره‌ها بر اساس دهک*\n\n"
-            for course, vals in PRICE.items():
-                text += f"• {course}:\n"
-                for d, price in vals.items():
-                    text += f"  دهک {d}: {price} تومان\n"
-                text += "\n"
-            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]})
-
         # ===== دهک =====
         elif cb == "decile":
             edit(
                 cid,
                 mid,
                 "📈 *دهک من چند است؟*\n\n"
-                "برای بررسی وضعیت دهک خانوار:\n\n"
+                "برای بررسی وضعیت دهک خانوار:\n"
                 "🔹 سامانه حمایت وزارت رفاه\n"
                 "🔹 کد دستوری: `#43857*4*`\n"
                 "🔹 اپلیکیشن‌های رفاه ایرانیان و شادمان",
@@ -176,13 +177,7 @@ def webhook():
 
         # ===== بازگشت به منوی اصلی =====
         elif cb == "back":
-            # استفاده از sendMessage به جای editMessageText برای ثابت ماندن دکمه‌ها
-            requests.post(f"{API}/sendMessage", json={
-                "chat_id": cid,
-                "text": "📋 منوی اصلی:",
-                "reply_markup": main_kb,
-                "parse_mode": "Markdown"
-            })
+            edit(cid, mid, "📋 منوی اصلی:", main_kb)
 
     return "OK"
 
