@@ -7,7 +7,7 @@ TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
 app = Flask(__name__)
 
-# ================== KEYBOARDS ==================
+# ================== MAIN KEYBOARD ==================
 main_keyboard = {
     "inline_keyboard": [
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
@@ -22,9 +22,7 @@ main_keyboard = {
     ]
 }
 
-def back_btn(target="back_to_main"):
-    return {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": target}]]}
-
+# ================== HELPERS ==================
 def edit_message(chat_id, message_id, text, reply_markup):
     requests.post(
         f"{TELEGRAM_API}/editMessageText",
@@ -57,12 +55,29 @@ decile_main_kb = {
 
 DECILE_SKILLS = {
     "d_comp": ["ICDL", "EXCEL"],
-    "d_graph": ["Photoshop", "Illustrator", "Corel Draw", "Premiere", "After Effect", "Create Content"],
-    "d_ai_eng": ["Python", "Data Science", "Machine Learning", "Deep Learning", "Computer Vision"],
+    "d_graph": ["Photoshop", "Illustrator", "Premiere", "After Effect", "Create Content"],
+    "d_ai_eng": ["Python", "Deep Learning"],
     "d_ai_user": ["AI Automation", "AI Powered Learning"],
-    "d_web": ["Frontend", "PHP", "WordPress", "SEO"],
-    "d_net": ["Network+", "Linux", "Cisco", "Microsoft"],
-    "d_arch": ["AutoCAD", "3Ds Max", "Revit", "SolidWorks"]
+    "d_web": ["WordPress", "SEO"],
+    "d_net": ["Network+"],
+    "d_arch": ["AutoCAD", "3Ds Max"]
+}
+
+# ================== PRICE TABLE ==================
+PRICE_TABLE = {
+    "ICDL": {6:"920.000",7:"989.000",8:"1.058.000",9:"1.127.000",10:"1.196.000"},
+    "AutoCAD": {6:"912.000",7:"981.000",8:"1.049.000",9:"1.117.000",10:"1.186.000"},
+    "3Ds Max": {6:"1.347.000",7:"1.448.000",8:"1.549.000",9:"1.650.000",10:"1.751.000"},
+    "Network+": {6:"320.000",7:"344.000",8:"368.000",9:"392.000",10:"416.000"},
+    "Photoshop": {6:"720.000",7:"774.000",8:"828.000",9:"882.000",10:"936.000"},
+    "Illustrator": {6:"720.000",7:"774.000",8:"828.000",9:"882.000",10:"936.000"},
+    "Premiere": {6:"384.000",7:"413.000",8:"441.000",9:"471.000",10:"499.000"},
+    "After Effect": {6:"1.160.000",7:"1.247.000",8:"1.334.000",9:"1.421.000",10:"1.508.000"},
+    "Python": {6:"840.000",7:"903.000",8:"966.000",9:"1.029.000",10:"1.092.000"},
+    "WordPress": {6:"1.448.000",7:"1.556.600",8:"1.665.200",9:"1.773.800",10:"1.882.400"},
+    "Deep Learning": {6:"962.500",7:"1.034.680",8:"1.106.870",9:"1.179.060",10:"1.251.250"},
+    "Create Content": {6:"448.000",7:"481.600",8:"515.200",9:"548.800",10:"582.400"},
+    "SEO": {6:"1.240.000",7:"1.333.000",8:"1.426.000",9:"1.519.000",10:"1.612.000"}
 }
 
 # ================== ROUTES ==================
@@ -76,7 +91,6 @@ def webhook():
     if not data:
         return "OK", 200
 
-    # /start
     if "message" in data and data["message"].get("text") == "/start":
         chat_id = data["message"]["chat"]["id"]
         requests.post(
@@ -90,7 +104,6 @@ def webhook():
         )
         return "OK", 200
 
-    # CALLBACKS
     if "callback_query" in data:
         q = data["callback_query"]
         chat_id = q["message"]["chat"]["id"]
@@ -113,16 +126,32 @@ def webhook():
         if cb in DECILE_SKILLS:
             skills = DECILE_SKILLS[cb]
             kb = {"inline_keyboard": []}
-
             for i in range(0, len(skills), 2):
-                row = [{"text": skills[i], "callback_data": "noop"}]
+                row = [{"text": skills[i], "callback_data": f"price_{skills[i]}"}]
                 if i + 1 < len(skills):
-                    row.append({"text": skills[i + 1], "callback_data": "noop"})
+                    row.append({"text": skills[i + 1], "callback_data": f"price_{skills[i + 1]}"} )
                 kb["inline_keyboard"].append(row)
-
             kb["inline_keyboard"].append([{"text": "🔙 بازگشت", "callback_data": "decile"}])
+            edit_message(chat_id, message_id, "📊 مهارت‌ها را انتخاب کنید:", kb)
+            return "OK", 200
 
-            edit_message(chat_id, message_id, "📊 مهارت‌های این رشته:", kb)
+        if cb.startswith("price_"):
+            course = cb.replace("price_", "")
+            prices = PRICE_TABLE.get(course)
+            if not prices:
+                edit_message(chat_id, message_id, "❌ قیمت یافت نشد", decile_main_kb)
+                return "OK", 200
+
+            text = f"💰 *هزینه دوره {course}*\n\n"
+            for d in range(6, 11):
+                text += f"دهک {d}: `{prices[d]} تومان`\n"
+
+            edit_message(
+                chat_id,
+                message_id,
+                text,
+                {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "decile"}]]}
+            )
             return "OK", 200
 
     return "OK", 200
@@ -131,4 +160,3 @@ def webhook():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
     app.run(host="0.0.0.0", port=port)
-
