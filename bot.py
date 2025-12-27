@@ -44,7 +44,7 @@ COURSES = {
     "📐 معماری مهندسی": ["AutoCAD", "3Ds Max", "Revit", "SolidWorks"]
 }
 
-# قیمت‌ها برای تعرفه
+# ================= PRICE =================
 PRICE = {
     "ICDL": {6:"920.000",7:"989.000",8:"1.058.000",9:"1.127.000",10:"1.196.000"},
     "EXCEL": {6:"-",7:"-",8:"-",9:"-",10:"-"},
@@ -86,11 +86,11 @@ def webhook():
         cb = q["data"]
 
         # ===== دوره‌ها =====
-        if cb == "courses":
+        if cb == "courses" or cb == "fees":  # fees هم مانند دوره‌ها عمل می‌کند
             kb = []
             row = []
             for i, key in enumerate(COURSES.keys()):
-                row.append({"text": key, "callback_data": f"course_{key}"})
+                row.append({"text": key, "callback_data": f"{cb}_course_{key}"})
                 if (i+1) % 2 == 0:
                     kb.append(row)
                     row = []
@@ -100,23 +100,24 @@ def webhook():
             edit(cid, mid, "📚 لطفاً یک دوره را انتخاب کنید:", {"inline_keyboard": kb})
 
         # ===== زیرمنو دوره =====
-        elif cb.startswith("course_"):
-            course_name = cb.replace("course_", "")
+        elif cb.startswith("courses_course_") or cb.startswith("fees_course_"):
+            prefix = "courses_course_" if cb.startswith("courses_course_") else "fees_course_"
+            course_name = cb.replace(prefix, "")
             items = COURSES.get(course_name, [])
             kb = []
             for item in items:
-                kb.append([{"text": item, "callback_data": f"price_{item}"}])
-            kb.append([{"text": "🔙 بازگشت", "callback_data": "courses"}])
+                kb.append([{"text": item, "callback_data": f"{cb[:4]}_price_{item}"}])  # preserves courses/fees context
+            kb.append([{"text": "🔙 بازگشت", "callback_data": "courses" if cb.startswith("courses_course_") else "fees"}])
             edit(cid, mid, f"💡 {course_name} شامل موارد زیر است:", {"inline_keyboard": kb})
 
         # ===== نمایش قیمت بر اساس دهک =====
-        elif cb.startswith("price_"):
-            item = cb.replace("price_", "")
+        elif cb.startswith("fees_price_"):
+            item = cb.replace("fees_price_", "")
             prices = PRICE.get(item, {})
             text = f"💰 تعرفه {item} بر اساس دهک:\n"
             for d, p in prices.items():
                 text += f"دهک {d}: {p} تومان\n"
-            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"courses"}]]})
+            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"fees"}]]})
 
         # ===== دریافت گواهینامه =====
         elif cb == "cert":
