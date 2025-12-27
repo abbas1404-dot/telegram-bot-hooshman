@@ -22,14 +22,16 @@ main_kb = {
     ]
 }
 
-def edit(chat_id, msg_id, text, kb):
-    requests.post(f"{API}/editMessageText", json={
+def edit(chat_id, msg_id, text, kb=None):
+    payload = {
         "chat_id": chat_id,
         "message_id": msg_id,
         "text": text,
-        "reply_markup": kb,
         "parse_mode": "Markdown"
-    })
+    }
+    if kb:
+        payload["reply_markup"] = kb
+    requests.post(f"{API}/editMessageText", json=payload)
 
 # ================= COURSES =================
 COURSES = {
@@ -55,7 +57,7 @@ courses_kb = {
     ]
 }
 
-# ================= PRICES =================
+# ================= PRICES (برای تعرفه) =================
 PRICE = {
     "ICDL": {6:"920.000",7:"989.000",8:"1.058.000",9:"1.127.000",10:"1.196.000"},
     "AutoCAD": {6:"912.000",7:"981.000",8:"1.049.000",9:"1.117.000",10:"1.186.000"},
@@ -95,8 +97,18 @@ def webhook():
         mid = q["message"]["message_id"]
         cb = q["data"]
 
+        # ===== دوره‌های فعال =====
+        if cb == "courses":
+            edit(cid, mid, "📚 لطفاً یک دوره را انتخاب کنید:", courses_kb)
+
+        # ===== زیر دوره‌ها =====
+        elif cb in COURSES:
+            items = COURSES[cb]
+            text = "💡 این دوره شامل موارد زیر است:\n" + "\n".join(f"• {i}" for i in items)
+            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت", "callback_data":"courses"}]]})
+
         # ===== دریافت گواهینامه =====
-        if cb == "cert":
+        elif cb == "cert":
             edit(
                 cid,
                 mid,
@@ -121,7 +133,7 @@ def webhook():
                 mid,
                 "🪪 *دریافت کارت آزمون*\n\n"
                 "در صورتی که نام شما برای یک تاریخ مشخص ثبت آزمون شده باشد، "
-                "می‌توانید *۱ تا ۳ روز قبل از آزمون* با مراجعه به سامانه و وارد کردن مشخصات، کارت خود را دانلود کنید.",
+                "می‌توانید *۱ تا ۳ روز قبل از آزمون* کارت خود را دانلود کنید.",
                 {
                     "inline_keyboard": [
                         [{"text": "🪪 دریافت کارت آزمون", "url": "https://azmoon.portaltvto.com/card/card/index/1/80"}],
@@ -129,6 +141,16 @@ def webhook():
                     ]
                 }
             )
+
+        # ===== تعرفه =====
+        elif cb == "fees":
+            text = "📊 *تعرفه دوره‌ها بر اساس دهک*\n\n"
+            for course, vals in PRICE.items():
+                text += f"• {course}:\n"
+                for d, price in vals.items():
+                    text += f"  دهک {d}: {price} تومان\n"
+                text += "\n"
+            edit(cid, mid, text, {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]})
 
         # ===== دهک =====
         elif cb == "decile":
@@ -143,8 +165,24 @@ def webhook():
                 {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]}
             )
 
+        # ===== نمونه سوالات =====
+        elif cb == "samples":
+            edit(
+                cid,
+                mid,
+                "📖 *نمونه سوالات*\nدانلود از [وبسایت آموزشگاه](https://hooshmaniran.ir/samples)",
+                {"inline_keyboard":[[{"text":"🔙 بازگشت","callback_data":"back"}]]}
+            )
+
+        # ===== بازگشت به منوی اصلی =====
         elif cb == "back":
-            edit(cid, mid, "📋 منوی اصلی:", main_kb)
+            # استفاده از sendMessage به جای editMessageText برای ثابت ماندن دکمه‌ها
+            requests.post(f"{API}/sendMessage", json={
+                "chat_id": cid,
+                "text": "📋 منوی اصلی:",
+                "reply_markup": main_kb,
+                "parse_mode": "Markdown"
+            })
 
     return "OK"
 
