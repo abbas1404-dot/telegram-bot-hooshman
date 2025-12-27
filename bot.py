@@ -5,7 +5,6 @@ import requests
 TOKEN = "8228546920:AAED-uM-Srx8MA0y0-Mc-6dx1sczQQjysNA"
 TELEGRAM_API = f"https://api.telegram.org/bot{TOKEN}"
 
-# ✅ منوی اصلی — هر گزینه یک سطر کامل (عرض کامل)
 main_keyboard = {
     "inline_keyboard": [
         [{"text": "📚 دوره‌های فعال", "callback_data": "courses"}],
@@ -20,7 +19,6 @@ main_keyboard = {
     ]
 }
 
-# 🔁 تابع ویرایش پیام (کلید موفقیت)
 def edit_message(chat_id, message_id, text, reply_markup=None):
     payload = {
         "chat_id": chat_id,
@@ -32,13 +30,10 @@ def edit_message(chat_id, message_id, text, reply_markup=None):
         payload["reply_markup"] = reply_markup
     requests.post(f"{TELEGRAM_API}/editMessageText", json=payload)
 
-# 🛠 تابع ساخت منوی با دکمهٔ بازگشت
 def add_back_button(reply_markup, back_data="back_to_main"):
     keyboard = reply_markup["inline_keyboard"]
-    # حذف دکمهٔ قبلی «بازگشت» (اگر وجود داشت)
-    if keyboard and keyboard[-1] and keyboard[-1][0].get("callback_data") == back_
+    if keyboard and len(keyboard[-1]) == 1 and keyboard[-1][0].get("callback_data") == "back_to_main":
         keyboard.pop()
-    # اضافه کردن دکمهٔ جدید در پایین
     keyboard.append([{"text": "🔙 بازگشت", "callback_data": back_data}])
     return {"inline_keyboard": keyboard}
 
@@ -55,10 +50,9 @@ def webhook():
         if data is None:
             return "OK", 200
 
-        # ✅ /start → ارسال اولین پیام
         if "message" in data and data["message"].get("text") == "/start":
             chat_id = data["message"]["chat"]["id"]
-            resp = requests.post(
+            requests.post(
                 f"{TELEGRAM_API}/sendMessage",
                 json={
                     "chat_id": chat_id,
@@ -69,7 +63,6 @@ def webhook():
             )
             return "OK", 200
 
-        # ✅ کلیک‌ها → فقط ویرایش پیام قبلی
         if "callback_query" in 
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
@@ -78,12 +71,10 @@ def webhook():
 
             requests.post(f"{TELEGRAM_API}/answerCallbackQuery", json={"callback_query_id": query["id"]})
 
-            # 🔙 بازگشت به منوی اصلی (از هر جایی)
             if callback_data == "back_to_main":
                 edit_message(chat_id, message_id, "📋 منوی اصلی:", main_keyboard)
                 return "OK", 200
 
-            # 📚 دوره‌های فعال
             if callback_data == "courses":
                 courses_kb = {
                     "inline_keyboard": [
@@ -98,38 +89,36 @@ def webhook():
                         [{"text": "🔧 تاسیسات", "callback_data": "c_inst"}]
                     ]
                 }
-                courses_kb = add_back_button(courses_kb)  # اضافه کردن «بازگشت»
+                courses_kb = add_back_button(courses_kb)
                 edit_message(chat_id, message_id, "📚 یک دوره را انتخاب کنید:", courses_kb)
                 return "OK", 200
 
-            # ▶️ انتخاب یک دوره — ویرایش همان پیام
             if callback_data.startswith("c_"):
                 descriptions = {
-                    "c_comp": "💻 *مهارت‌های کامپیوتر*\n• آموزش ویندوز، آفیس، اینترنت\n• سطح: مقدماتی\n• مدت: ۴۰ ساعت",
+                    "c_comp": "💻 *مهارت‌های کامپیوتر*\n• آموزش ویندوز، آفیس\n• سطح: مقدماتی\n• مدت: ۴۰ ساعت",
                     "c_graph": "🎨 *گرافیک دیزاین*\n• فتوشاپ، ایلاستریتور\n• پروژه: لوگو، بنر\n• مدت: ۶۰ ساعت",
                     "c_ai_eng": "🧠 *مهندس هوش مصنوعی*\n• پایتون، یادگیری ماشین\n• پیش‌نیاز: برنامه‌نویسی\n• مدت: ۱۲۰ ساعت",
                     "c_ai_user": "🧑 *کاربر هوش مصنوعی*\n• کاربرد عملی AI\n• بدون برنامه‌نویسی\n• مدت: ۳۰ ساعت",
-                    "c_web": "🌐 *طراحی سایت*\n• HTML, CSS, React\n• ساخت فروشگاه اینترنتی\n• مدت: ۸۰ ساعت",
+                    "c_web": "🌐 *طراحی سایت*\n• HTML, CSS, React\n• ساخت فروشگاه\n• مدت: ۸۰ ساعت",
                     "c_net": "🔒 *شبکه و امنیت*\n• CCNA، تست نفوذ\n• آزمایشگاه مجازی\n• مدت: ۱۰۰ ساعت",
                     "c_eng": "📐 *معماری مهندسی*\n• AutoCAD, Revit\n• طراحی ساختمان\n• مدت: ۷۰ ساعت",
-                    "c_art": "🎨 *هنرهای تجسمی*\n• نقاشی دیجیتال، انیمیشن\n• نرم‌افزارهای تخصصی\n• مدت: ۵۰ ساعت",
+                    "c_art": "🎨 *هنرهای تجسمی*\n• نقاشی دیجیتال\n• نرم‌افزارهای تخصصی\n• مدت: ۵۰ ساعت",
                     "c_inst": "🔧 *تاسیسات*\n• برق، لوازم خانگی\n• کارگاه عملی\n• مدت: ۴۵ ساعت"
                 }
                 text = descriptions.get(callback_data, "ℹ️ اطلاعات در حال آماده‌سازی است.")
-                edit_message(chat_id, message_id, text, list_button_kb)
+                edit_message(chat_id, message_id, text, {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]})
                 return "OK", 200
 
-            # ▶️ سایر گزینه‌های اصلی — همه با ویرایش
             responses = {
-                "cert": "🎓 *دریافت گواهینامه*\nگواهینامه معتبر *وزارت کار* پس از قبولی صادر و قابل استعلام است.",
-                "card": "🪪 *دریافت کارت آزمون*\nکارت ورود ۲۴ ساعت قبل از آزمون به صورت خودکار ارسال می‌شود.",
-                "fee": "📊 *تعرفه آزمون*\n• آزمون اصلی: رایگان (برای دانشجویان)\n• آزمون آزمایشی: ۲۵۰,۰۰۰ تومان",
-                "decile": "📈 *دهک من چند است؟*\nدهک شما بر اساس رتبه در میان کل شرکت‌کنندگان محاسبه می‌شود.",
+                "cert": "🎓 *دریافت گواهینامه*\nگواهینامه معتبر *وزارت کار* پس از قبولی صادر می‌شود.",
+                "card": "🪪 *دریافت کارت آزمون*\nکارت ورود ۲۴ ساعت قبل از آزمون ارسال می‌شود.",
+                "fee": "📊 *تعرفه آزمون*\n• آزمون اصلی: رایگان\n• آزمون آزمایشی: ۲۵۰,۰۰۰ تومان",
+                "decile": "📈 *دهک من چند است؟*\nبر اساس رتبه در میان کل شرکت‌کنندگان.",
                 "samples": "📖 *نمونه سوالات*\nدر [وبسایت ما](https://hooshmaniran.ir/samples) قابل دانلود است."
             }
 
             if callback_data in responses:
-                text = responses[callback_data] + "\n\n🔙 برای بازگشت، روی دکمهٔ «بازگشت» کلیک کنید."
+                text = responses[callback_data] + "\n\n🔙 برای بازگشت، روی دکمه کلیک کنید."
                 edit_message(chat_id, message_id, text, {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]})
                 return "OK", 200
 
@@ -138,9 +127,6 @@ def webhook():
     except Exception as e:
         print("❌ Error:", str(e))
         return "OK", 200
-
-# ✅ فقط یک دکمهٔ بازگشت برای پاسخ‌های فرعی
-list_button_kb = {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8000))
