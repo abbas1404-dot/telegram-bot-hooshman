@@ -30,13 +30,6 @@ def edit_message(chat_id, message_id, text, reply_markup=None):
         payload["reply_markup"] = reply_markup
     requests.post(f"{TELEGRAM_API}/editMessageText", json=payload)
 
-def add_back_button(reply_markup, back_data="back_to_main"):
-    keyboard = reply_markup["inline_keyboard"]
-    if keyboard and len(keyboard[-1]) == 1 and keyboard[-1][0].get("callback_data") == "back_to_main":
-        keyboard.pop()
-    keyboard.append([{"text": "🔙 بازگشت", "callback_data": back_data}])
-    return {"inline_keyboard": keyboard}
-
 app = Flask(__name__)
 
 @app.route("/")
@@ -63,7 +56,7 @@ def webhook():
             )
             return "OK", 200
 
-        if "callback_query" in 
+        if "callback_query" in data:
             query = data["callback_query"]
             chat_id = query["message"]["chat"]["id"]
             message_id = query["message"]["message_id"]
@@ -86,10 +79,10 @@ def webhook():
                         [{"text": "🔒 شبکه و امنیت", "callback_data": "c_net"}],
                         [{"text": "📐 معماری مهندسی", "callback_data": "c_eng"}],
                         [{"text": "🎨 هنرهای تجسمی", "callback_data": "c_art"}],
-                        [{"text": "🔧 تاسیسات", "callback_data": "c_inst"}]
+                        [{"text": "🔧 تاسیسات", "callback_data": "c_inst"}],
+                        [{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]
                     ]
                 }
-                courses_kb = add_back_button(courses_kb)
                 edit_message(chat_id, message_id, "📚 یک دوره را انتخاب کنید:", courses_kb)
                 return "OK", 200
 
@@ -99,14 +92,19 @@ def webhook():
                     "c_graph": "🎨 *گرافیک دیزاین*\n• فتوشاپ، ایلاستریتور\n• پروژه: لوگو، بنر\n• مدت: ۶۰ ساعت",
                     "c_ai_eng": "🧠 *مهندس هوش مصنوعی*\n• پایتون، یادگیری ماشین\n• پیش‌نیاز: برنامه‌نویسی\n• مدت: ۱۲۰ ساعت",
                     "c_ai_user": "🧑 *کاربر هوش مصنوعی*\n• کاربرد عملی AI\n• بدون برنامه‌نویسی\n• مدت: ۳۰ ساعت",
-                    "c_web": "🌐 *طراحی سایت*\n• HTML, CSS, React\n• ساخت فروشگاه\n• مدت: ۸۰ ساعت",
+                    "c_web": "🌐 *طراحی سایت*\n• HTML, CSS\n• ساخت فروشگاه\n• مدت: ۸۰ ساعت",
                     "c_net": "🔒 *شبکه و امنیت*\n• CCNA، تست نفوذ\n• آزمایشگاه مجازی\n• مدت: ۱۰۰ ساعت",
-                    "c_eng": "📐 *معماری مهندسی*\n• AutoCAD, Revit\n• طراحی ساختمان\n• مدت: ۷۰ ساعت",
+                    "c_eng": "📐 *معماری مهندسی*\n• AutoCAD\n• طراحی ساختمان\n• مدت: ۷۰ ساعت",
                     "c_art": "🎨 *هنرهای تجسمی*\n• نقاشی دیجیتال\n• نرم‌افزارهای تخصصی\n• مدت: ۵۰ ساعت",
                     "c_inst": "🔧 *تاسیسات*\n• برق، لوازم خانگی\n• کارگاه عملی\n• مدت: ۴۵ ساعت"
                 }
                 text = descriptions.get(callback_data, "ℹ️ اطلاعات در حال آماده‌سازی است.")
-                edit_message(chat_id, message_id, text, {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]})
+                edit_message(
+                    chat_id,
+                    message_id,
+                    text + "\n\n🔙 برای بازگشت، روی دکمه کلیک کنید.",
+                    {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]}
+                )
                 return "OK", 200
 
             responses = {
@@ -119,7 +117,12 @@ def webhook():
 
             if callback_data in responses:
                 text = responses[callback_data] + "\n\n🔙 برای بازگشت، روی دکمه کلیک کنید."
-                edit_message(chat_id, message_id, text, {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]})
+                edit_message(
+                    chat_id,
+                    message_id,
+                    text,
+                    {"inline_keyboard": [[{"text": "🔙 بازگشت", "callback_data": "back_to_main"}]]}
+                )
                 return "OK", 200
 
         return "OK", 200
